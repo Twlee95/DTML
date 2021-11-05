@@ -38,13 +38,16 @@ class PositionalEncoding(nn.Module):
           
 
 class Transformer(nn.Module):
-    def __init__(self, feature_size=250, num_layers=1, dropout=0.1,batch_size=128,x_frames = 20):
+    def __init__(self, feature_size=250, num_layers=1, dropout=0.1, batch_size=128, x_frames = 20, nhead=10):
         super(Transformer, self).__init__()
         self.model_type = 'Transformer'
-        
+        self.nhead = nhead
+        self.feature_size = feature_size
+        self.dropout = dropout
         self.src_mask = None
         self.pos_encoder = PositionalEncoding(feature_size)
-        self.encoder_layer = nn.TransformerEncoderLayer(d_model=feature_size, nhead=10, dropout=dropout)
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=self.feature_size,
+                                                        nhead=self.nhead, dropout=self.dropout)
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
         self.decoder = nn.Linear(feature_size, 1)
         self.init_weights()

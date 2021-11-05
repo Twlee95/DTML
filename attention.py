@@ -84,6 +84,3 @@ class Attention(nn.Module):
 
         # (B, S, N), (B, H, S_q, S_k)
         return self.output_linear(x), attn
-
-
-

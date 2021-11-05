@@ -64,7 +64,7 @@ class LSTM_dec(nn.Module):
         layers.append(nn.Dropout(self.dropout))    ##  nn.Dropout
 
         ## hidden dim을 outputdim으로 바꿔주는 MLP
-        layers.append(nn.Linear(self.seq_len *self.regression_input_size, self.output_dim))
+        layers.append(nn.Linear(self.seq_len * self.regression_input_size, self.output_dim))
         regressor = nn.Sequential(*layers)
         return regressor
 
@@ -74,9 +74,8 @@ class LSTM_dec(nn.Module):
         ## LSTM의 hidden state에는 tuple로 cell state포함, 0번째는 hidden state tensor, 1번째는 cell state
 
         lstm_out, self.hidden = self.lstm(x, encoder_hidden_states)
-        lstm_out = lstm_out.transpose(0, 1)
         encoder_hidden_states = encoder_hidden_states[0]
-        attn_applied, attn_weights = self.attention(lstm_out, encoder_hidden_states, encoder_hidden_states)
+        attn_applied, attn_weights = self.attention(self.hidden, encoder_hidden_states, encoder_hidden_states)
 
 
         ## lstm_out : 각 time step에서의 lstm 모델의 output 값
