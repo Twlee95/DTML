@@ -16,16 +16,16 @@ class LSTM_enc(nn.Module):
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        return (torch.zeros(self.num_layers, self.batch_size, self.hidden_dim),
-                torch.zeros(self.num_layers, self.batch_size, self.hidden_dim))
+        h = torch.empty(self.num_layers, self.batch_size, self.hidden_dim)
+        c = torch.empty(self.num_layers, self.batch_size, self.hidden_dim)
+        return (nn.init.xavier_normal_(h),
+                nn.init.xavier_normal_(c))
 
     def forward(self, x):
         # 새로 opdate 된 self.hidden과 lstm_out을 return 해줌
         # self.hidden 각각의 layer의 모든 hidden state 를 갖고있음
         ## LSTM의 hidden state에는 tuple로 cell state포함, 0번째는 hidden state tensor, 1번째는 cell state
-        print(x.size())
         lstm_out, self.hidden = self.lstm(x, self.hidden)
-        print(lstm_out.size())
 
         return lstm_out, self.hidden
 
@@ -33,10 +33,9 @@ class LSTM_enc(nn.Module):
 
 class LSTM_dec(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, batch_size, dropout,use_bn, attn_head,
-                 attn_size,x_frames, activation="ReLU"):
+                 attn_size, activation="ReLU"):
         super(LSTM_dec,self).__init__()
         self.input_dim = input_dim
-        self.seq_len = x_frames
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
         self.num_layers = num_layers
@@ -56,6 +55,7 @@ class LSTM_dec(nn.Module):
 
         self.regression_input_size = self.attn_size + self.hidden_dim
         self.regressor = self.make_regressor()
+
 
     def make_regressor(self): # 간단한 MLP를 만드는 함수
         layers = []
@@ -81,7 +81,9 @@ class LSTM_dec(nn.Module):
         ## lstm_out : 각 time step에서의 lstm 모델의 output 값
         ## lstm_out[-1] : 맨마지막의 아웃풋 값으로 그 다음을 예측하고싶은 것이기 때문에 -1을 해줌
 
+
         concat = torch.cat([attn_applied, self.hidden[0]], dim=2).view(self.batch_size, -1)
         y_pred = self.activation(self.regressor(concat))
 
         return y_pred, attn_weights
+

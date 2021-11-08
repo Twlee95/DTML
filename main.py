@@ -1,14 +1,24 @@
 import sys
-sys.path.append('C:\\Users\\leete\\PycharmProjects\\DTML')
+sys.path.append('C:\\Users\\USER\\PycharmProjects\\DTML')
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from Stock_Dataset import StockDataset
 import argparse
+import Encoder_Decoder_LSTM
 from Encoder_Decoder_LSTM import LSTM_enc
 from Encoder_Decoder_LSTM import LSTM_dec
 from Transformer_Encoder import Transformer
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+import importlib
+importlib.reload(Encoder_Decoder_LSTM)
+
+
+
+
+
 
 def train(encoder, decoder,transformer,                                  ## Model
           encoder_optimizer, decoder_optimizer, transformer_optimizer,   ## Optimizer
@@ -16,6 +26,10 @@ def train(encoder, decoder,transformer,                                  ## Mode
     trainloader = DataLoader(Partition['train'],
                              batch_size = args.batch_size,
                              shuffle=False, drop_last=True)
+
+    scaler = MinMaxScaler()
+
+
     train_loss = 0.0
     for i, (x,y) in enumerate(trainloader):
         encoder.train()
@@ -25,7 +39,6 @@ def train(encoder, decoder,transformer,                                  ## Mode
         encoder_optimizer.zero_grad()
         decoder_optimizer.zero_grad()
         transformer_optimizer.zero_grad()
-
         data_out_list = []
         for i in range(len(x)):
             encoder.train()
@@ -35,25 +48,28 @@ def train(encoder, decoder,transformer,                                  ## Mode
             encoder_optimizer.zero_grad()
             decoder_optimizer.zero_grad()
             transformer_optimizer.zero_grad()
-            x = x[i].transpose(0,1).float().to(args.device)
-            y = y[i].float().to(args.device)
+
+            input_x = x[i].transpose(0,1).float().to(args.device)
+            true_y = y[i].float().to(args.device)
+
 
             encoder.hidden = [hidden.to(args.device) for hidden in encoder.init_hidden()]
 
-            y_pred_encoder, hidden_encoder = encoder(x)
-            print(i)
+            y_pred_encoder, hidden_encoder = encoder(input_x)
             hidden_decoder = hidden_encoder
-            print(i)
-            y_pred_decoder, attention_weight = decoder(x, hidden_decoder)
-            print(i)
+
+            decoder_input = torch.zeros(args.decoder_x_frames, args.batch_size, args.input_dim).to(args.device)
+
+            y_pred_decoder, attention_weight = decoder(decoder_input, hidden_decoder)
             data_out_list.append(y_pred_decoder)
-            print(i)
 
-        index_output = data_out_list[0]
-        stock_output = data_out_list[1]
+        index_output = data_out_list[0] # torch.Size([128, 10])
+        stock_output = data_out_list[1] # torch.Size([128, 10])
 
-        print(index_output.size())
-        print(stock_output.size())
+
+        output = transformer()
+
+
 
         loss = args.loss_fn(y_pred_decoder,y)
         loss.backward()
@@ -77,7 +93,7 @@ def train(encoder, decoder,transformer,                                  ## Mode
 def experiment(partition, args):
     encoder = args.encoder(args.input_dim, args.hid_dim, args.num_layers, args.batch_size)
     decoder = args.decoder(args.input_dim, args.hid_dim, args.output_dim, args.num_layers, args.batch_size,
-                           args.dropout, args.use_bn, args.attention_head, args.attn_size, args.x_frames,
+                           args.dropout, args.use_bn, args.attention_head, args.attn_size,
                            activation="ReLU")
     transformer = args.transformer(args.trans_feature_size, args.trans_num_laysers,
                                    args.dropout, args.batch_size, args.x_frames, args.trans_nhead)
@@ -138,8 +154,10 @@ def experiment(partition, args):
 
 
 
-
-
+# ====== Random Seed Initialization ====== #
+seed = 666
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 # ========= experiment setting ========== #
 parser = argparse.ArgumentParser()
@@ -168,7 +186,7 @@ args.dropout = 0.0
 args.use_bn = True
 args.loss_fn = nn.BCELoss()  ## loss function for classification : cross entropy
 args.optim = 'Adam'
-args.lr = 0.0001
+args.lr = 0.01
 args.l2 = 0.00001 #?
 args.epoch = 250
 
@@ -182,12 +200,12 @@ args.hid_dim = 10
 args.attention_head = 1
 args.attn_size = 9
 args.num_layers = 1
+args.decoder_x_frames = 1
 
 # ====== transformer hyperparameter ======= #
 args.trans_feature_size = 250
 args.trans_num_laysers = 1
 args.trans_nhead = 10
-
 
 
 for stock in args.stock_list:
@@ -202,3 +220,5 @@ for stock in args.stock_list:
     partition = {'train': trainset, 'val': valset, 'test': testset}
 
     experiment(partition,args)
+
+
