@@ -25,8 +25,8 @@ class StockDataset:
         X_list=[]
         y_list=[]
         for data in self.data_list_:
-            X = data.iloc[idx:idx + self.x_frames]
-            y = data.iloc[idx + self.x_frames:idx + self.x_frames+self.y_frames]
+            X = data.iloc[idx:idx + self.x_frames].to_numpy()
+            y = data.iloc[idx + self.x_frames:idx + self.x_frames+self.y_frames].to_numpy()
             X_list.append(X)
             y_list.append(y)
         return X_list, y_list  ## 데이터별 리스트

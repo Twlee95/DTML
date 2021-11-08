@@ -1,11 +1,14 @@
 import sys
-sys.path.append('C:\\Users\\leete\\PycharmProjects\\DTML\\DTML')
+sys.path.append('C:\\Users\\leete\\PycharmProjects\\DTML')
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from Stock_Dataset import StockDataset
 import argparse
+from Encoder_Decoder_LSTM import LSTM_enc
+from Encoder_Decoder_LSTM import LSTM_dec
+from Transformer_Encoder import Transformer
 
 def train(encoder, decoder,transformer,                                  ## Model
           encoder_optimizer, decoder_optimizer, transformer_optimizer,   ## Optimizer
@@ -13,7 +16,6 @@ def train(encoder, decoder,transformer,                                  ## Mode
     trainloader = DataLoader(Partition['train'],
                              batch_size = args.batch_size,
                              shuffle=False, drop_last=True)
-
     train_loss = 0.0
     for i, (x,y) in enumerate(trainloader):
         encoder.train()
@@ -24,8 +26,8 @@ def train(encoder, decoder,transformer,                                  ## Mode
         decoder_optimizer.zero_grad()
         transformer_optimizer.zero_grad()
 
+        data_out_list = []
         for i in range(len(x)):
-
             encoder.train()
             decoder.train()
             transformer.train()
@@ -33,24 +35,37 @@ def train(encoder, decoder,transformer,                                  ## Mode
             encoder_optimizer.zero_grad()
             decoder_optimizer.zero_grad()
             transformer_optimizer.zero_grad()
-
-            x = x[i].to(args.device)
-            y = y[i].to(args.device)
+            x = x[i].transpose(0,1).float().to(args.device)
+            y = y[i].float().to(args.device)
 
             encoder.hidden = [hidden.to(args.device) for hidden in encoder.init_hidden()]
 
             y_pred_encoder, hidden_encoder = encoder(x)
-
+            print(i)
             hidden_decoder = hidden_encoder
-
+            print(i)
             y_pred_decoder, attention_weight = decoder(x, hidden_decoder)
+            print(i)
+            data_out_list.append(y_pred_decoder)
+            print(i)
 
+        index_output = data_out_list[0]
+        stock_output = data_out_list[1]
 
-            loss = args.loss_fn(y_pred_decoder,y)
+        print(index_output.size())
+        print(stock_output.size())
 
-            loss.backward()
+        loss = args.loss_fn(y_pred_decoder,y)
+        loss.backward()
 
-    return
+        encoder_optimizer.step()  ## parameter 갱신
+        decoder_optimizer.step()
+        transformer_optimizer.step()
+
+        train_loss += loss.item()
+
+    train_loss = train_loss / len(trainloader)
+    return encoder, decoder, transformer, train_loss
 
 # def validation(encoder, decoder,transformer,
 #                partition, args):
@@ -91,7 +106,11 @@ def experiment(partition, args):
     val_losses = []
     # ===================================== #
 
-    #for epoch in range(args.epoch):
+
+    for epoch in range(args.epoch):
+        encoder, decoder, transformer, train_loss = train(encoder, decoder, transformer,
+                enc_optimizer, dec_optimizer, transformer_optimizer,
+                partition, args)
 
 
 # '^KS11' : KOSPI
@@ -118,14 +137,20 @@ def experiment(partition, args):
 
 
 
+
+
+
+
+# ========= experiment setting ========== #
 parser = argparse.ArgumentParser()
 args = parser.parse_args("")
+args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 ## ======== data ============= #
 args.index = ['^IXIC']
 args.stock_list = ['AAPL', 'AMZN','MSFT','TSLA','GOOG','FB','NVDA','AMD']
-args.data_count = len(args.data_symbol_list)
+args.data_count = len(args.stock_list)
 args.train_start = "2012-01-01"
 args.train_end = "2016-12-31"
 args.validation_start = "2017-01-01"
@@ -137,11 +162,20 @@ args.test_end = "2020-12-31"
 args.batch_size = 128
 args.x_frames = 10
 args.y_frames = 1
-args.input_dim = 1
+args.input_dim = 6
 args.output_dim = 1
 args.dropout = 0.0
 args.use_bn = True
-args.loss_fn = nn.BCELOSS()  ## loss function for classification : cross entropy
+args.loss_fn = nn.BCELoss()  ## loss function for classification : cross entropy
+args.optim = 'Adam'
+args.lr = 0.0001
+args.l2 = 0.00001 #?
+args.epoch = 250
+
+# ============= model ================== #
+args.encoder = LSTM_enc
+args.decoder = LSTM_dec
+args.transformer = Transformer
 
 # ====== att_lstm hyperparameter ======= #
 args.hid_dim = 10
@@ -156,20 +190,15 @@ args.trans_nhead = 10
 
 
 
-
 for stock in args.stock_list:
-    args.entire_datalist = args.index + stock
-
+    args.entire_datalist = args.index + [stock]
     # 0번째에 index 1번째에 stock 1개가 input으로 들어감
-    trainset = StockDataset(args.entire_datalist, args.x_frames, args.y_frames,args.train_start)
-    valset = StockDataset(args.entire_datalist, args.x_frames, args.y_frames)
-    testset = StockDataset(args.entire_datalist, args.x_frames, args.y_frames)
+    trainset = StockDataset(args.entire_datalist, args.x_frames, args.y_frames,
+                            args.train_start, args.train_end)
+    valset = StockDataset(args.entire_datalist, args.x_frames, args.y_frames,
+                          args.validation_start,args.validation_end)
+    testset = StockDataset(args.entire_datalist, args.x_frames, args.y_frames,
+                           args.test_start, args.test_end)
     partition = {'train': trainset, 'val': valset, 'test': testset}
 
-
     experiment(partition,args)
-
-
-
-
-
