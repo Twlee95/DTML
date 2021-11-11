@@ -12,10 +12,6 @@ from Encoder_Decoder_LSTM import LSTM_dec
 from Transformer_Encoder import Transformer
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-import importlib
-importlib.reload(Encoder_Decoder_LSTM)
-
-
 
 
 
@@ -26,9 +22,6 @@ def train(encoder, decoder,transformer,                                  ## Mode
     trainloader = DataLoader(Partition['train'],
                              batch_size = args.batch_size,
                              shuffle=False, drop_last=True)
-
-    scaler = MinMaxScaler()
-
 
     train_loss = 0.0
     for i, (x,y) in enumerate(trainloader):
@@ -66,12 +59,16 @@ def train(encoder, decoder,transformer,                                  ## Mode
         index_output = data_out_list[0] # torch.Size([128, 10])
         stock_output = data_out_list[1] # torch.Size([128, 10])
 
+        Transformer_input = index_output + stock_output
+        Transformer_input = Transformer_input.unsqueeze(0).transpose(0,2)
 
-        output = transformer()
+        output = transformer(Transformer_input)
+        print(output.size())
+
+        print(y[1][:,:,3].size())
 
 
-
-        loss = args.loss_fn(y_pred_decoder,y)
+        loss = args.loss_fn(output,y)
         loss.backward()
 
         encoder_optimizer.step()  ## parameter 갱신
@@ -82,6 +79,7 @@ def train(encoder, decoder,transformer,                                  ## Mode
 
     train_loss = train_loss / len(trainloader)
     return encoder, decoder, transformer, train_loss
+
 
 # def validation(encoder, decoder,transformer,
 #                partition, args):
@@ -219,6 +217,4 @@ for stock in args.stock_list:
                            args.test_start, args.test_end)
     partition = {'train': trainset, 'val': valset, 'test': testset}
 
-    experiment(partition,args)
-
-
+    experiment(partition, args)

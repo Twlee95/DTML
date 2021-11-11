@@ -5,7 +5,7 @@ import torch.nn as nn
 
 class LSTM_enc(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, batch_size):
-        super(LSTM_enc,self).__init__()
+        super(LSTM_enc, self).__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
@@ -74,7 +74,6 @@ class LSTM_dec(nn.Module):
         ## LSTM의 hidden state에는 tuple로 cell state포함, 0번째는 hidden state tensor, 1번째는 cell state
 
         lstm_out, self.hidden = self.lstm(x, encoder_hidden_states)
-
         encoder_hidden_states = encoder_hidden_states[0] ## 0번째가 히든스테이트임 1번째는 cell state
         attn_applied, attn_weights = self.attention(self.hidden[0], encoder_hidden_states, encoder_hidden_states)
 

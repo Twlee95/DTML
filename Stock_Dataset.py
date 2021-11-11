@@ -35,3 +35,7 @@ if __name__=="__main__":
     data_symbol_list = ['^IXIC', 'AAPL', 'AMZN','MSFT','TSLA','GOOG','FB','NVDA','AMD']
     trainset = StockDataset(data_symbol_list, 10, 1,"2012-01-01","2016-12-31")
 
+
+
+
+
