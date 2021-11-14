@@ -6,17 +6,14 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from Stock_Dataset import StockDataset
 import argparse
-import Encoder_Decoder_LSTM
 from Encoder_Decoder_LSTM import LSTM_enc
 from Encoder_Decoder_LSTM import LSTM_dec
 from Transformer_Encoder import Transformer
-from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
 
-
-
 def train(encoder, decoder,transformer,                                  ## Model
+
           encoder_optimizer, decoder_optimizer, transformer_optimizer,   ## Optimizer
           Partition, args):                                      ## Data, loss function, argument
     trainloader = DataLoader(Partition['train'],
@@ -43,7 +40,8 @@ def train(encoder, decoder,transformer,                                  ## Mode
             transformer_optimizer.zero_grad()
 
             input_x = x[i].transpose(0,1).float().to(args.device)
-            true_y = y[i].float().to(args.device)
+            true_y = y[i].squeeze().float().to(args.device)
+
 
 
             encoder.hidden = [hidden.to(args.device) for hidden in encoder.init_hidden()]
@@ -53,22 +51,28 @@ def train(encoder, decoder,transformer,                                  ## Mode
 
             decoder_input = torch.zeros(args.decoder_x_frames, args.batch_size, args.input_dim).to(args.device)
 
-            y_pred_decoder, attention_weight = decoder(decoder_input, hidden_decoder)
-            data_out_list.append(y_pred_decoder)
+            y_pred_decoder, attention_weight, attn_applied = decoder(decoder_input, hidden_decoder)
+
+            data_out_list.append(attn_applied)
 
         index_output = data_out_list[0] # torch.Size([128, 10])
         stock_output = data_out_list[1] # torch.Size([128, 10])
 
         Transformer_input = index_output + stock_output
-        Transformer_input = Transformer_input.unsqueeze(0).transpose(0,2)
+
+        Transformer_input = Transformer_input.transpose(0,2)
+
+
 
         output = transformer(Transformer_input)
+
+        output = torch.where(output >= 0.5, 1, 0)
+
+        print(true_y.size())
+
         print(output.size())
 
-        print(y[1][:,:,3].size())
-
-
-        loss = args.loss_fn(output,y)
+        loss = args.loss_fn(output, true_y)
         loss.backward()
 
         encoder_optimizer.step()  ## parameter 갱신
@@ -163,6 +167,9 @@ args = parser.parse_args("")
 args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
+
+
+
 ## ======== data ============= #
 args.index = ['^IXIC']
 args.stock_list = ['AAPL', 'AMZN','MSFT','TSLA','GOOG','FB','NVDA','AMD']
@@ -178,7 +185,7 @@ args.test_end = "2020-12-31"
 args.batch_size = 128
 args.x_frames = 10
 args.y_frames = 1
-args.input_dim = 6
+args.input_dim = 11
 args.output_dim = 1
 args.dropout = 0.0
 args.use_bn = True
@@ -196,7 +203,7 @@ args.transformer = Transformer
 # ====== att_lstm hyperparameter ======= #
 args.hid_dim = 10
 args.attention_head = 1
-args.attn_size = 9
+args.attn_size = 10
 args.num_layers = 1
 args.decoder_x_frames = 1
 
@@ -218,3 +225,4 @@ for stock in args.stock_list:
     partition = {'train': trainset, 'val': valset, 'test': testset}
 
     experiment(partition, args)
+

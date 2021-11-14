@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 
 
+
 class LSTM_enc(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, batch_size):
         super(LSTM_enc, self).__init__()
@@ -84,5 +85,5 @@ class LSTM_dec(nn.Module):
         concat = torch.cat([attn_applied, self.hidden[0]], dim=2).view(self.batch_size, -1)
         y_pred = self.activation(self.regressor(concat))
 
-        return y_pred, attn_weights
+        return y_pred, attn_weights, attn_applied
 
