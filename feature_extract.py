@@ -2,6 +2,8 @@ from pandas_datareader import data as pdr
 import yfinance as yfin
 import pandas as pd
 import numpy as np
+import torch.nn as nn
+import torch
 
 class make_feature:
     def __init__(self, symbol, start, end):
@@ -9,6 +11,9 @@ class make_feature:
         self.start = start
         self.end = end
         self.data_load = self.data_(self.symbol, self.start, self.end)
+
+        self.linear = nn.Linear(11,10)
+        self.tanh = nn.Tanh()
 
     def data_(self, symbol, start, end):
         yfin.pdr_override()
@@ -35,7 +40,7 @@ class make_feature:
         return np.array(lt_feature_list).T
 
     def tgt_make(self, data):
-        tgt = np.where(data.loc[:, "Adj Close"] >= data.loc[:, "Adj Close"].shift(periods=1, axis=0), 1, 0)
+        tgt = np.where(data.loc[:, "Adj Close"] >= data.loc[:, "Adj Close"].shift(periods=1, axis=0), 1.0, 0.0)
         return tgt
 
     def all_feature(self):
@@ -48,6 +53,7 @@ class make_feature:
         z_low = (data.loc[:, "Low"] / data.loc[:, "Close"] - 1).to_numpy()
         z_close = (data.loc[:, "Close"] / data.loc[:, "Close"].shift(periods=1, axis=0) - 1).to_numpy()
         z_adjclose = (data.loc[:, "Adj Close"] / data.loc[:, "Adj Close"].shift(periods=1, axis=0) - 1).to_numpy()
+
 
 
         tgt = self.tgt_make(data)
